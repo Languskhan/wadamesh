@@ -30,6 +30,19 @@ python3 tools/make_cities.py tl_2024_06_place cities.bin                       #
 python3 tools/make_cities.py tl_2024_06_place cities.bin -125 32 -114 42.1    # all of California (about 2.1 MB)
 ```
 
+Ready-made files for every state (plus DC and Puerto Rico) are on the city-locator
+GitHub Release, built by the `city-files-release` workflow (Actions tab -> Run workflow).
+To build a whole state yourself:
+
+```
+python3 tools/make_cities.py --state tl_2024_48_place cities-texas
+```
+
+That writes `cities-texas.bin`, or, if it would be over 4,000,000 bytes, splits the state
+along its longer direction into `cities-texas-north.bin` / `-south.bin` (or `-east` /
+`-west`), and again if needed (`-northeast` ...). A place crossing a dividing line goes
+in both parts.
+
 Boundaries are simplified to about 5 m. Census-designated places are statistical
 areas, not legal city limits. Files up to 4 MB are accepted.
 
