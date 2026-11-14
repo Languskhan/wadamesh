@@ -1,0 +1,81 @@
+name: city-locator-release
+
+# Builds the city-locator firmware for the Heltec V4-R8, LilyGo T-Deck / T-Deck Plus and
+# Elecrow ThinkNode M9, makes the cities.bin boundary files, and publishes them as a
+# GitHub Release. Run it from the Actions tab: "city-locator-release" -> Run workflow.
+# Nothing here uses secrets; it only needs permission to create the Release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. city-locator-v1)'
+        required: true
+        default: 'city-locator-v1'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      ENVS: "heltec_v4_r8_tft_companion_radio_usb_tcp_touch LilyGo_TDeck_companion_radio_touch ThinkNode_M9_companion_radio_touch"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            .pio
+          key: pio-city-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+
+      - name: Install tools
+        run: pip install --upgrade platformio pyshp shapely
+
+      - name: Build firmware (no Wi-Fi credentials baked in)
+        run: |
+          unset WIFI_SSID WIFI_PWD
+          for e in $ENVS; do pio run -t mergebin -e "$e"; done
+
+      - name: Collect firmware
+        run: |
+          mkdir -p dist
+          declare -A NAME=(
+            [heltec_v4_r8_tft_companion_radio_usb_tcp_touch]=wadamesh-city-heltec-v4-r8
+            [LilyGo_TDeck_companion_radio_touch]=wadamesh-city-tdeck
+            [ThinkNode_M9_companion_radio_touch]=wadamesh-city-thinknode-m9
+          )
+          for e in $ENVS; do
+            n=${NAME[$e]}
+            cp ".pio/build/$e/firmware.bin"        "dist/$n.bin"
+            cp ".pio/build/$e/firmware-merged.bin" "dist/$n-merged.bin"
+          done
+
+      - name: Build cities.bin files from US Census place boundaries
+        run: |
+          mkdir -p census && cd census
+          curl -sSfL -o place.zip https://www2.census.gov/geo/tiger/TIGER2024/PLACE/tl_2024_06_place.zip
+          unzip -q place.zip
+          python3 ../tools/make_cities.py tl_2024_06_place ../dist/cities-sacramento-foothills.bin
+          python3 ../tools/make_cities.py tl_2024_06_place ../dist/cities-california.bin -125 32 -114 42.1
+          cd .. && ls -la dist
+
+      - name: Create / update the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --target "$GITHUB_SHA" \
+              --title "WadaMesh City Locator ($TAG)" \
+              --notes-file release-notes/city-locator.md
+          fi
