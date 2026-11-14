@@ -1,0 +1,100 @@
+name: city-files-release
+
+# Builds a cities.bin boundary file for every US state (plus DC and Puerto Rico) from
+# US Census TIGER/Line place boundaries and attaches them to the city-locator GitHub
+# Release. A state too big for one file (over ~4 MB) is split automatically into
+# north/south or east/west parts (e.g. cities-texas-north.bin).
+# Run it from the Actions tab: "city-files-release" -> Run workflow.
+# Nothing here uses secrets; it only needs permission to edit the Release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to attach the files to (created if missing)'
+        required: true
+        default: 'city-locator-v1'
+      year:
+        description: 'TIGER/Line year'
+        required: true
+        default: '2024'
+
+permissions:
+  contents: write
+
+jobs:
+  cities:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install tools
+        run: pip install pyshp shapely
+
+      - name: Build city files for all states
+        env:
+          YEAR: ${{ github.event.inputs.year }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist census
+          STATES="01:alabama 02:alaska 04:arizona 05:arkansas 06:california 08:colorado
+            09:connecticut 10:delaware 11:district-of-columbia 12:florida 13:georgia 15:hawaii
+            16:idaho 17:illinois 18:indiana 19:iowa 20:kansas 21:kentucky 22:louisiana 23:maine
+            24:maryland 25:massachusetts 26:michigan 27:minnesota 28:mississippi 29:missouri
+            30:montana 31:nebraska 32:nevada 33:new-hampshire 34:new-jersey 35:new-mexico
+            36:new-york 37:north-carolina 38:north-dakota 39:ohio 40:oklahoma 41:oregon
+            42:pennsylvania 44:rhode-island 45:south-carolina 46:south-dakota 47:tennessee
+            48:texas 49:utah 50:vermont 51:virginia 53:washington 54:west-virginia
+            55:wisconsin 56:wyoming 72:puerto-rico"
+          : > census/index.txt
+          for s in $STATES; do
+            fips=${s%%:*}; slug=${s#*:}
+            base="tl_${YEAR}_${fips}_place"
+            echo "::group::$slug ($fips)"
+            curl -sSfL --retry 4 --retry-delay 10 -o "census/$base.zip" \
+              "https://www2.census.gov/geo/tiger/TIGER${YEAR}/PLACE/$base.zip"
+            unzip -q -o "census/$base.zip" -d "census/$fips"
+            python3 tools/make_cities.py --state "census/$fips/$base" "dist/cities-$slug" \
+              | tee -a census/index.txt
+            rm -rf "census/$fips" "census/$base.zip"
+            echo "::endgroup::"
+          done
+          # The Sacramento-Foothills regional file from the original release.
+          curl -sSfL -o census/ca.zip "https://www2.census.gov/geo/tiger/TIGER${YEAR}/PLACE/tl_${YEAR}_06_place.zip"
+          unzip -q -o census/ca.zip -d census/06
+          python3 tools/make_cities.py "census/06/tl_${YEAR}_06_place" dist/cities-sacramento-foothills.bin
+          ls -la dist
+
+      - name: Write the file list
+        run: |
+          {
+            cat release-notes/city-locator.md
+            echo
+            echo "## City files for every state"
+            echo
+            echo "Download the file for where you are and rename it to \`cities.bin\`. Big states come in"
+            echo "parts (north/south or east/west); pick the part you are in. Towns on a dividing line are in both parts."
+            echo
+            echo "| File | Places | Size |"
+            echo "| --- | ---: | ---: |"
+            grep '^FILE ' census/index.txt | sort -k2 | \
+              awk '{ printf "| `%s` | %s | %.1f MB |\n", $2, $3, $4/1048576 }'
+          } > dist-notes.md
+          cat dist-notes.md
+
+      - name: Attach to the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/*.bin --clobber
+            gh release edit "$TAG" --notes-file dist-notes.md
+          else
+            gh release create "$TAG" dist/*.bin --target "$GITHUB_SHA" \
+              --title "WadaMesh City Locator ($TAG)" --notes-file dist-notes.md
+          fi
