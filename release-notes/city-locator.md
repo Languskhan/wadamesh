@@ -20,8 +20,7 @@ Tested on all three devices below. Details: [CITY_LOCATOR.md](https://github.com
 `-merged.bin` is the full image to flash at address **0x0**. The plain `.bin` files are app-only images (address 0x10000) for people who already know they want them.
 
 City files: there is one for every US state, plus DC and Puerto Rico (full list at the bottom).
-Pick the one for where you are and rename it to `cities.bin`. Big states may come in parts
-(for example `cities-texas-north.bin` and `cities-texas-south.bin`). There is also
+Pick the one for where you are and rename it to `cities.bin`. There is also
 `cities-sacramento-foothills.bin`, a smaller file for the Sacramento area.
 
 ## Install
