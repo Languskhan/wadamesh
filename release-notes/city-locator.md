@@ -19,10 +19,10 @@ Tested on all three devices below. Details: [CITY_LOCATOR.md](https://github.com
 
 `-merged.bin` is the full image to flash at address **0x0**. The plain `.bin` files are app-only images (address 0x10000) for people who already know they want them.
 
-City files (pick one, rename it to `cities.bin`):
-
-- `cities-sacramento-foothills.bin`: 307 places around Sacramento, Davis, Placerville, Yuba City and Chico (430 KB)
-- `cities-california.bin`: all 1,618 places in California (2.1 MB)
+City files: there is one for every US state, plus DC and Puerto Rico (full list at the bottom).
+Pick the one for where you are and rename it to `cities.bin`. Big states may come in parts
+(for example `cities-texas-north.bin` and `cities-texas-south.bin`). There is also
+`cities-sacramento-foothills.bin`, a smaller file for the Sacramento area.
 
 ## Install
 
@@ -36,5 +36,5 @@ To go back, flash the official WadaMesh build from its web flasher.
 ## Notes
 
 - Census-designated places (like Orangevale or Fair Oaks) are statistical areas, not legal city limits.
-- Other US states: build your own `cities.bin` with `tools/make_cities.py` (see CITY_LOCATOR.md).
+- Only one city file is used at a time. If you travel across states, swap the file and restart.
 - Boundary data: US Census Bureau TIGER/Line 2024 (public domain). Firmware: WadaMesh by ALLFATHER-BV and contributors, GPL-3.0. This build is not affiliated with or supported by the WadaMesh project.
