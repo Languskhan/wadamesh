@@ -76,8 +76,12 @@ jobs:
             echo
             echo "## City files for every state"
             echo
-            echo "Download the file for where you are and rename it to \`cities.bin\`. Big states come in"
-            echo "parts (north/south or east/west); pick the part you are in. Towns on a dividing line are in both parts."
+            echo "Download the file for where you are and rename it to \`cities.bin\`."
+            # Only mention parts when a state actually had to be split.
+            if grep -qE -- '-(north|south|east|west|northeast|northwest|southeast|southwest)\.bin ' census/index.txt; then
+              echo "Big states come in parts (north/south or east/west); pick the part you are in."
+              echo "Towns on a dividing line are in both parts."
+            fi
             echo
             echo "| File | Places | Size |"
             echo "| --- | ---: | ---: |"
