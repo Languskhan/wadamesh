@@ -330,5 +330,5 @@ void zeroOnIncoming(int kind, const char* from, int channel_idx, const char* whe
   }
   close(p[1]);
   fcntl(p[0], F_SETFL, O_NONBLOCK);
-  s_hooks.push_back({pid, p[0], "", millis(), kind, channel_idx, who});
+  s_hooks.push_back({pid, p[0], "", (uint32_t)millis(), kind, channel_idx, who});
 }
